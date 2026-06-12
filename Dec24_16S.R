@@ -667,7 +667,7 @@ insL_ousL_df <- spscorAll[spscorAll$ASV %in% simp_asv_insL_ousL, ]
 find_hull <- function(df) df[chull(df$axis01, df$axis02),]
 micro.hulls <- ddply(metadata_filt, "type_ins", find_hull)
 
-#plot it for distance
+#plot it 
 ggplot(metadata_filt, aes(axis01, axis02)) +
   geom_polygon(data = micro.hulls, 
                aes(colour = type_ins, fill = type_ins), alpha = 0.1, show.legend = F) +
@@ -676,15 +676,17 @@ ggplot(metadata_filt, aes(axis01, axis02)) +
                      values=c('purple1','#74e374', 'cyan2'))+
   xlab("PCoA 1") +
   ylab("PCoA 2") +
+  ggtitle("(a)") + 
   geom_text_repel(data = veg_insL_df,
                   aes(x = V1, y = V2, label = label),
-                  size = 3, color = "black") +
+                  size = 5, color = "black") +
   geom_text_repel(data = veg_ousL_df,
                   aes(x = V1, y = V2, label = label),
-                  size = 3, color = "black") +
+                  size = 5, color = "black") +
   geom_text_repel(data = insL_ousL_df,
                   aes(x = V1, y = V2, label = label),
-                  size = 3, color = "black") +
+                  size = 5, color = "black") +
+  labs(color = NULL, fill = NULL) +
   theme_bw() +
   theme(
     plot.title = element_text(size = 16, hjust = 0.5),
@@ -692,6 +694,7 @@ ggplot(metadata_filt, aes(axis01, axis02)) +
     axis.text.y = element_text(size = 16),
     axis.title.x = element_text(size = 18, face = "bold",color = "black"),
     plot.margin = unit(c(0.1,0.1,0,0.1),"cm"))
+
 
 
 
