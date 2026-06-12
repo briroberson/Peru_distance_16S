@@ -18,7 +18,7 @@ library(ecole)
 library(plyr)
 library(mirlyn)
 library(ANCOMBC)
-
+library(ggrepel)
 
 # Load Metadata ----
 
@@ -27,7 +27,7 @@ library(ANCOMBC)
 
 ### 1a. Metadata and elevation
 #the metadata
-metadata<-readr::read_tsv("F:\\Research\\Dec24_16S\\peru-dec24-metadata16S.tsv")
+metadata<-readr::read_tsv("peru-dec24-metadata16S.tsv")
 
 # make distance a factor
 metadata$distance<- as.factor(metadata$distance)
@@ -42,9 +42,9 @@ metadata$type<- as.factor(metadata$type)
 # Load Other Data ----
 
 #load it into a phyloseq object
-phy <- qza_to_phyloseq("D:\\Soil\\Dec24_16S\\PeruDec24_16S_table.qza", 
-                       "D:\\Soil\\Dec24_16S\\PeruDec24_16S_rooted-tree.qza", 
-                       "D:\\Soil\\Dec24_16S\\PeruDec24_16S_taxonomy.qza")
+phy <- qza_to_phyloseq("PeruDec24_16S_table.qza", 
+                       "PeruDec24_16S_rooted-tree.qza", 
+                       "PeruDec24_16S_taxonomy.qza")
 
 #add the metadata to the phyloseq because for some reason I couldn't load it directly
 #order the samples in the metadata to match the order of samples in phyloseq
@@ -99,8 +99,8 @@ pruned_filtered_phy
 
 #save it as R file so it can be easily loaded. at this point I recommend continuing
 #through the rarefying step and save the rarefied file instead
-saveRDS(final_filtered_phy, file="newfilepath") #use whatever file path for where you want to save it
-final_filt_phy<-readRDS("newfilepath")
+saveRDS(final_filtered_phy, file = "final_filtered_phy.rds") #use whatever file path for where you want to save it
+final_filt_phy<-readRDS("final_filtered_phy.rds")
 
 
 ######## 3. Rarefying. if you want to skip to the rarefying and not do all of these steps (3a-3d) 
@@ -256,8 +256,8 @@ filt_rare_phy<-readRDS("D:\\Soil\\Dec24_16S\\filt_rare_phy_16s.rds")
 #save the data as an R file so it doesn't have to be loaded each time.
 #now when you start R, you can load the metadata and waypoints in step 1a. and skip
 #steps 1b-3d
-saveRDS(filt_rare_phy, file="F:\\Research\\Dec24_16S\\filt_rare_phy.rds") #use whatever file path for where you want to save it
-filt_rare_phy<-readRDS("F:\\Research\\Dec24_16S\\filt_rare_phy_16s.rds")
+saveRDS(filt_rare_phy, file="filt_rare_phy.rds") #use whatever file path for where you want to save it
+filt_rare_phy<-readRDS("filt_rare_phy_16s.rds")
 
 #order metadata to match phyloseq
 metadata<-metadata[ order(match(metadata$sampleID, colnames(filt_rare_phy@otu_table))), ]
@@ -420,6 +420,22 @@ permanova_veg
 permanova_pairwise(distance(filt_rare_phy, method='wunifrac'), grp=metadata_filt$type_ins, padj='holm')
 
 
+## Permanova with separate 1 & 2 groups 
+metadata_filt_grouped <- metadata_filt %>%
+  mutate(group = case_when(
+    type == "veg_patch" ~ "veg_patch",
+    type == "latrine" & distance == 1 ~ "1",
+    type == "latrine" & distance == 2 ~ "2",
+    type == "latrine" & distance %in% 3:6 ~ "outside",
+    TRUE ~ NA_character_ ))
+metadata_filt_grouped$group <- as.factor(metadata_filt_grouped$group)
+
+permanova_grouped<- adonis2(distance(filt_rare_phy, method='wunifrac')~group, data=metadata_filt_grouped, by='terms')
+permanova_grouped
+
+#pairwise permanova 
+permanova_pairwise(distance(filt_rare_phy, method='wunifrac'), grp=metadata_filt_grouped$group, padj='holm')
+
 
 ### now for BRAY----
 set.seed(200) ###VERY IMPORTANT, always keep the same
@@ -497,6 +513,8 @@ ggplot(metadata_lat, aes(axis01, axis02)) +
     axis.text.x = element_text(size = 18, face = "bold",color = "black"),
     plot.margin = unit(c(0.1,0.1,0,0.1),"cm"))
 
+
+
 ## for veg and latrine
 #get asv table and transpose for all samples
 asvAll<- as.data.frame(otu_table(filt_rare_phy))
@@ -522,7 +540,7 @@ ggplot(metadata_filt, aes(axis01, axis02)) +
                aes(colour = type_ins, fill = type_ins), alpha = 0.1, show.legend = F) +
   geom_point(size = 3, aes(colour = type_ins)) +
   scale_color_manual(labels=c('Inside Latrine','Vegetation Patch','Outside Latrine'),
-                  values=c('purple1','#74e374', 'cyan2'))+
+                     values=c('purple1','#74e374', 'cyan2'))+
   xlab("PCoA 1") +
   ylab("PCoA 2") +
   theme_bw() +
@@ -532,7 +550,6 @@ ggplot(metadata_filt, aes(axis01, axis02)) +
     axis.text.y = element_text(size = 16),
     axis.title.x = element_text(size = 18, face = "bold",color = "black"),
     plot.margin = unit(c(0.1,0.1,0,0.1),"cm"))
-
 # Simper ----
 
 # run simper for Distance----
@@ -581,7 +598,7 @@ simper_veg
 s_veg<- summary(simper_veg)
 top10_veg_insL<-head(s_veg$ins_latrine_ins_veg_patch, n = 10)
 top10_veg_ousL<-head(s_veg$out_latrine_ins_veg_patch, n = 10)
-top10_insL_ousL<-head(s_veg$ins_latrine_ins_veg_patch, n = 10)
+top10_insL_ousL<-head(s_veg$ins_latrine_out_latrine, n = 10)
 
 simp_asv_veg_insL<- row.names(top10_veg_insL)
 simp_asv_veg_ousL<- row.names(top10_veg_ousL)
@@ -591,6 +608,90 @@ simp_asv_insL_ousL<- row.names(top10_insL_ousL)
 simper_veg_insL_taxa<-taxa_dis[row.names(taxa_dis) %in% simp_asv_veg_insL,]
 simper_veg_ousL_taxa<-taxa_dis[row.names(taxa_dis) %in% simp_asv_veg_ousL,]
 simper_insL_ousL_taxa<-taxa_dis[row.names(taxa_dis) %in% simp_asv_insL_ousL,]
+
+
+###pcoa with simper labels 
+
+#function to get lowest identified taxa 
+bad_terms <- c(
+  "Incertae_Sedis",
+  "Subgroup_10")
+
+
+get_lowest_tax <- function(x) {
+  x <- as.character(x)
+  
+  for (i in rev(seq_along(x))) {
+    if (!is.na(x[i]) &&
+        x[i] != "" &&
+        !any(sapply(bad_terms, function(b) grepl(b, x[i], ignore.case = TRUE)))) {
+      return(x[i])
+    }
+  }
+  return(NA)
+}
+
+tax_cols <- c("Kingdom","Phylum","Class","Order","Family","Genus","Species")
+taxa_dis$label <- apply(
+  taxa_dis[, tax_cols],
+  1,
+  get_lowest_tax)
+
+
+## for veg and latrine
+#get asv table and transpose for all samples
+asvAll<- as.data.frame(otu_table(filt_rare_phy))
+tasvAll <- data.frame(t(asvAll), check.names = F)
+
+#calculate the pcoa
+pcoaAll<-cmdscale(d=distance(filt_rare_phy, method='wunifrac'), eig=T)
+#add the scores to the metadata
+metadata_filt$axis01<- vegan::scores(pcoaAll)[,1]
+metadata_filt$axis02<- vegan::scores(pcoaAll)[,2]
+
+#retrieve species scores for it
+spscorAll<-as.data.frame(wascores(x = pcoaAll$points, w = tasvAll))
+spscorAll$ASV <- rownames(spscorAll)
+
+spscorAll <- merge(spscorAll, taxa_dis[, "label", drop = FALSE],
+                    by = "row.names", all.x = TRUE)
+rownames(spscorAll) <- spscorAll$Row.names
+
+veg_insL_df  <- spscorAll[spscorAll$ASV %in% simp_asv_veg_insL, ]
+veg_ousL_df  <- spscorAll[spscorAll$ASV %in% simp_asv_veg_ousL, ]
+insL_ousL_df <- spscorAll[spscorAll$ASV %in% simp_asv_insL_ousL, ]
+
+#use this function to calculate the hulls
+find_hull <- function(df) df[chull(df$axis01, df$axis02),]
+micro.hulls <- ddply(metadata_filt, "type_ins", find_hull)
+
+#plot it for distance
+ggplot(metadata_filt, aes(axis01, axis02)) +
+  geom_polygon(data = micro.hulls, 
+               aes(colour = type_ins, fill = type_ins), alpha = 0.1, show.legend = F) +
+  geom_point(size = 3, aes(colour = type_ins)) +
+  scale_color_manual(labels=c('Inside Latrine','Vegetation Patch','Outside Latrine'),
+                     values=c('purple1','#74e374', 'cyan2'))+
+  xlab("PCoA 1") +
+  ylab("PCoA 2") +
+  geom_text_repel(data = veg_insL_df,
+                  aes(x = V1, y = V2, label = label),
+                  size = 3, color = "black") +
+  geom_text_repel(data = veg_ousL_df,
+                  aes(x = V1, y = V2, label = label),
+                  size = 3, color = "black") +
+  geom_text_repel(data = insL_ousL_df,
+                  aes(x = V1, y = V2, label = label),
+                  size = 3, color = "black") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 16, hjust = 0.5),
+    axis.title.y = element_text(face="bold", size = 18), 
+    axis.text.y = element_text(size = 16),
+    axis.title.x = element_text(size = 18, face = "bold",color = "black"),
+    plot.margin = unit(c(0.1,0.1,0,0.1),"cm"))
+
+
 
 
 ## DA----
