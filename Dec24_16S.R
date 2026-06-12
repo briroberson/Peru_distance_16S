@@ -19,6 +19,8 @@ library(plyr)
 library(mirlyn)
 library(ANCOMBC)
 library(ggrepel)
+library(patchwork)
+
 
 # Load Metadata ----
 
@@ -716,10 +718,12 @@ All_DA<-ancombc2(data = filt_rare_phy, tax_level = "Genus",
 res_prim = All_DA$res %>%
   mutate_if(is.numeric, function(x) round(x, 2))
 saveRDS(res_prim, file='F:\\Research\\Dec24_16S\\DA_prim.rds')
+res_prim <- readRDS("DA_prim.rds")
 
 #view the structural zeros
 tab_zero = All_DA$zero_ind
 saveRDS(tab_zero, file='F:\\Research\\Dec24_16S\\DA_zero.rds')
+tab_zero <- readRDS("DA_zero.rds")
 
 tab_zero_insL_veg<- tab_zero %>% 
   filter((`structural_zero (type_ins = ins_latrine)`==T & `structural_zero (type_ins = ins_veg_patch)`==F)|
@@ -728,7 +732,7 @@ tab_zero_insL_veg<- tab_zero %>%
 #view pairwise
 res_pair<- All_DA$res_pair %>% 
   mutate_if(is.numeric, function(x) round(x, 2))
-saveRDS(res_pair, file='F:\\Research\\Dec24_16S\\DA_pair.rds')
+res_pair <- readRDS("DA_pair.rds")
 
 #plot the log change in significant/passed sensitivity test for taxa between 
 # Inside latrine and Vegetation Patch
@@ -737,7 +741,7 @@ res_insL_veg<- res_pair %>%
   dplyr::arrange(desc(lfc_type_insins_veg_patch)) %>% 
   dplyr::mutate(direct = ifelse(lfc_type_insins_veg_patch> 0, "Positive LFC", "Negative LFC"))
 
-#make taxon and direction factors
+#make taxon and direction factors and add number index 
 res_insL_veg$taxon<- factor(res_insL_veg$taxon, levels=res_insL_veg$taxon)
 res_insL_veg$direct<- factor(res_insL_veg$direct, levels = c("Positive LFC", "Negative LFC"))
 
@@ -748,8 +752,6 @@ fig_insL_veg = res_insL_veg %>%
            position = position_dodge(width = 0.4)) +
   geom_errorbar(aes(ymin = lfc_type_insins_veg_patch - se_type_insins_veg_patch, ymax = lfc_type_insins_veg_patch + se_type_insins_veg_patch), 
                 width = 0.2, position = position_dodge(0.05), color = "black") + 
-  labs(x = NULL, y = "Log fold change", 
-       title = "Log fold changes") + 
   scale_fill_discrete(name = NULL) +
   scale_color_discrete(name = NULL) +
   theme_bw() + 
@@ -757,6 +759,39 @@ fig_insL_veg = res_insL_veg %>%
         panel.grid.minor.y = element_blank(),
         axis.text.x = element_text(angle = 60, hjust = 1))
 fig_insL_veg
+
+#remove taxa for paper 
+fig_insL_veg = res_insL_veg %>%
+  ggplot(aes(x = taxon, y = lfc_type_insins_veg_patch, fill = direct)) + 
+  geom_bar(stat = "identity", width = 0.7, color = "black",
+           position = position_dodge(width = 0.4)) +
+  labs(y = "Log-fold change", x = NULL, title = "(a)") + 
+  geom_errorbar(
+    aes(
+      ymin = lfc_type_insins_veg_patch - se_type_insins_veg_patch,
+      ymax = lfc_type_insins_veg_patch + se_type_insins_veg_patch
+    ),
+    width = 0.2,
+    position = position_dodge(0.05),
+    color = "black"
+  ) + 
+  scale_x_discrete(labels = seq_along(unique(res_insL_veg$taxon))) +
+  scale_fill_manual(values = c(
+    "Positive LFC" = "purple1",
+    "Negative LFC" = "#74e374"
+  )) +
+  theme_bw() + 
+  theme(
+    plot.title = element_text(size = 16, hjust = 0.5),
+    axis.title.y = element_text(face="bold", size = 18), 
+    axis.text.y = element_text(size = 16),
+    axis.text.x = element_text(size = 16),
+    axis.title.x = element_text(size = 18, face = "bold", color = "black"),
+    plot.margin = unit(c(0.1,0.1,0,0.1), "cm"),
+    legend.title = element_blank()
+  )
+fig_insL_veg
+
 
 # Inside latrine and outside latrine
 res_insL_ousL<- res_pair %>% 
@@ -767,7 +802,6 @@ res_insL_ousL<- res_pair %>%
 #make taxon and direction factors
 res_insL_ousL$taxon<- factor(res_insL_ousL$taxon, levels=res_insL_ousL$taxon)
 res_insL_ousL$direct<- factor(res_insL_ousL$direct, levels = c("Positive LFC", "Negative LFC"))
-
 
 fig_insL_ousL = res_insL_ousL %>%
   ggplot(aes(x = taxon, y = lfc_type_insout_latrine, fill=direct)) + 
@@ -784,6 +818,38 @@ fig_insL_ousL = res_insL_ousL %>%
         panel.grid.minor.y = element_blank(),
         axis.text.x = element_blank())
 fig_insL_ousL
+
+
+#for manuscript 
+
+fig_insL_ousL = res_insL_ousL %>%
+  ggplot(aes(x = taxon, y = lfc_type_insout_latrine, fill=direct)) + 
+  geom_bar(stat = "identity", width = 0.7, color = "black", 
+           position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = lfc_type_insout_latrine - se_type_insout_latrine, ymax = lfc_type_insout_latrine + se_type_insout_latrine), 
+                width = 0.2, position = position_dodge(0.05), color = "black") + 
+  labs(x = NULL, y = "Log fold change", title = "(b)") + 
+  scale_x_discrete(labels = seq_along(unique(res_insL_ousL$taxon))) +
+  scale_fill_manual(values = c(
+    "Positive LFC" = "purple1",
+    "Negative LFC" = "cyan2"
+  )) +
+  theme_bw() + 
+  theme(
+    plot.title = element_text(size = 16, hjust = 0.5),
+    axis.title.y = element_text(face="bold", size = 18), 
+    axis.text.y = element_text(size = 16),
+    axis.text.x = element_text(size = 16),
+    axis.title.x = element_text(size = 18, face = "bold", color = "black"),
+    plot.margin = unit(c(0.1,0.1,0,0.1), "cm"),
+    legend.title = element_blank()
+  )
+fig_insL_ousL
+
+
+#to put together 
+fig_insL_veg /
+  fig_insL_ousL
 
 # Outside Latrine and Vegetation patches
 res_ousL_veg<- res_pair %>% 
