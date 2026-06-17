@@ -611,34 +611,43 @@ simper_veg_insL_taxa<-taxa_dis[row.names(taxa_dis) %in% simp_asv_veg_insL,]
 simper_veg_ousL_taxa<-taxa_dis[row.names(taxa_dis) %in% simp_asv_veg_ousL,]
 simper_insL_ousL_taxa<-taxa_dis[row.names(taxa_dis) %in% simp_asv_insL_ousL,]
 
+names(simper_veg)
+
+#see only significant species
+comparisons <- c("ins_latrine_out_latrine", "ins_latrine_ins_veg_patch", "out_latrine_ins_veg_patch") 
+
+simper.results <- purrr::map_dfr(comparisons, function(comp) {
+  df <- as.data.frame(simper_veg[[comp]]) %>%
+    tibble::rownames_to_column("ASV")
+  df %>%
+    dplyr::mutate(
+      Comparison = comp,
+      Position = seq_len(nrow(df)))
+})
+
+#filter for significant 
+sig_asvs_veg <- simper.results %>%
+  filter(p <= 0.05) %>%
+  dplyr::select(ASV, average, Comparison, Position)
+
+#create a df of significant ASVs with taxonomy 
+taxaveg <- as.data.frame(tax_table(filt_rare_phy)) %>%
+  tibble::rownames_to_column("ASV")
+simper_taxaveg <- simper.results %>%
+  left_join(taxaveg, by = c("ASV" = "ASV"))
+#grab top 10 only 
+simper_taxaveg_top10 <- simper_taxaveg %>%
+  group_by(Comparison) %>%
+  arrange(desc(average)) %>%
+  slice_head(n = 10) %>%
+  ungroup()
+write.csv(simper_taxaveg_top10, "simper_veg_top10.csv", row.names = FALSE)
+
+
+
+
 
 ###pcoa with simper labels 
-
-#function to get lowest identified taxa 
-bad_terms <- c(
-  "Incertae_Sedis",
-  "Subgroup_10")
-
-
-get_lowest_tax <- function(x) {
-  x <- as.character(x)
-  
-  for (i in rev(seq_along(x))) {
-    if (!is.na(x[i]) &&
-        x[i] != "" &&
-        !any(sapply(bad_terms, function(b) grepl(b, x[i], ignore.case = TRUE)))) {
-      return(x[i])
-    }
-  }
-  return(NA)
-}
-
-tax_cols <- c("Kingdom","Phylum","Class","Order","Family","Genus","Species")
-taxa_dis$label <- apply(
-  taxa_dis[, tax_cols],
-  1,
-  get_lowest_tax)
-
 
 ## for veg and latrine
 #get asv table and transpose for all samples
@@ -653,15 +662,24 @@ metadata_filt$axis02<- vegan::scores(pcoaAll)[,2]
 
 #retrieve species scores for it
 spscorAll<-as.data.frame(wascores(x = pcoaAll$points, w = tasvAll))
+#subset to top 10 significant asvs from simper to plot 
 spscorAll$ASV <- rownames(spscorAll)
-
-spscorAll <- merge(spscorAll, taxa_dis[, "label", drop = FALSE],
-                    by = "row.names", all.x = TRUE)
-rownames(spscorAll) <- spscorAll$Row.names
-
-veg_insL_df  <- spscorAll[spscorAll$ASV %in% simp_asv_veg_insL, ]
-veg_ousL_df  <- spscorAll[spscorAll$ASV %in% simp_asv_veg_ousL, ]
-insL_ousL_df <- spscorAll[spscorAll$ASV %in% simp_asv_insL_ousL, ]
+spscorAll_top10 <- spscorAll %>%
+  dplyr::filter(ASV %in% simper_taxaveg_top10$species)
+#add taxonomy 
+tax_df <- as.data.frame(phyloseq::tax_table(filt_rare_phy)) %>%
+  tibble::rownames_to_column("ASV")
+spscorAll_top10 <- spscorAll_top10 %>%
+  dplyr::left_join(tax_df, by = "ASV")
+#select lowest assigned taxonomy
+spscorAll_top10 <- spscorAll_top10 %>%
+  mutate(
+    tax_label = case_when(
+      !Genus %in% c("Incertae_Sedis", "Subgroup_10") ~ Genus,
+      Family != "Incertae_Sedis" ~ Family,
+      Order != "Incertae_Sedis" ~ Order,
+      Class != "Incertae_Sedis" ~ Class,
+      TRUE ~ Phylum))
 
 #use this function to calculate the hulls
 find_hull <- function(df) df[chull(df$axis01, df$axis02),]
@@ -674,18 +692,18 @@ ggplot(metadata_filt, aes(axis01, axis02)) +
   geom_point(size = 3, aes(colour = type_ins)) +
   scale_color_manual(labels=c('Inside Latrine','Vegetation Patch','Outside Latrine'),
                      values=c('purple1','#74e374', 'cyan2'))+
+  geom_segment(aes(x=0, xend=V1, y=0, yend=V2), data=spscorAll_top10, arrow=arrow())+
+  ggrepel::geom_text_repel(
+    data = spscorAll_top10,
+    aes(V1, V2, label = tax_label),
+    size = 3,
+    max.overlaps = Inf,
+    box.padding = 0.4,
+    point.padding = 0.3,
+    segment.color = "grey50") + 
   xlab("PCoA 1") +
   ylab("PCoA 2") +
   ggtitle("(a)") + 
-  geom_text_repel(data = veg_insL_df,
-                  aes(x = V1, y = V2, label = label),
-                  size = 5, color = "black") +
-  geom_text_repel(data = veg_ousL_df,
-                  aes(x = V1, y = V2, label = label),
-                  size = 5, color = "black") +
-  geom_text_repel(data = insL_ousL_df,
-                  aes(x = V1, y = V2, label = label),
-                  size = 5, color = "black") +
   labs(color = NULL, fill = NULL) +
   theme_bw() +
   theme(
