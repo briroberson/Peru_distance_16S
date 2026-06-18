@@ -674,11 +674,12 @@ spscorAll_top10 <- spscorAll_top10 %>%
 spscorAll_top10 <- spscorAll_top10 %>%
   mutate(
     tax_label = case_when(
-      !Genus %in% c("Incertae_Sedis", "Subgroup_10") ~ Genus,
-      Family != "Incertae_Sedis" ~ Family,
-      Order != "Incertae_Sedis" ~ Order,
-      Class != "Incertae_Sedis" ~ Class,
-      TRUE ~ Phylum))
+      !is.na(Genus)  & !Genus  %in% c("Incertae_Sedis", "Subgroup_10") ~ Genus,
+      !is.na(Family) & Family != "Incertae_Sedis" ~ Family,
+      !is.na(Order)  & Order  != "Incertae_Sedis" ~ Order,
+      !is.na(Class)  & Class  != "Incertae_Sedis" ~ Class,
+      !is.na(Phylum) ~ Phylum,
+      TRUE ~ ASV))
 
 #use this function to calculate the hulls
 find_hull <- function(df) df[chull(df$axis01, df$axis02),]
