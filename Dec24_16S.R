@@ -709,13 +709,13 @@ ggplot(metadata_filt, aes(axis01, axis02)) +
     segment.color = "grey50")  + 
   xlab(paste0("PCoA 1 (", var_exp[1], "%)")) +
   ylab(paste0("PCoA 2 (", var_exp[2], "%)")) + 
-  ggtitle("(a)") + 
-  labs(color = NULL, fill = NULL) +
+  ggtitle("16S Beta Diversity") + 
+  labs(color = NULL, fill = NULL) + 
   theme_bw()  +
   theme(
     panel.border = element_blank(),
     axis.line = element_line(colour = "black") , 
-    plot.title = element_text(size = 16, hjust = 0.5),
+    plot.title = element_text(size = 18, hjust = 0.5, face = "bold"),
     axis.title.y = element_text(face="bold", size = 18), 
     axis.text.y = element_text(size = 16),
     axis.title.x = element_text(size = 18, face = "bold",color = "black"),
@@ -735,7 +735,13 @@ ggplot(metadata_filt, aes(axis01, axis02)) +
       fill = "white" )) +
   guides(
     colour = guide_legend(override.aes = list(size = 2.75)),
-    fill = guide_legend(ncol = 3, override.aes = list(alpha = 1))) 
+    fill = guide_legend(ncol = 3, override.aes = list(alpha = 1))) +
+  labs(tag = "(a)") +
+  theme(
+    plot.tag = element_text(face = "bold", size = 18),
+    plot.tag.position = c(0.02, 0.98) )
+
+#export 1000 x 700
 
 
 ###export these taxa to BLAST
@@ -823,7 +829,7 @@ fig_insL_veg = res_insL_veg %>%
   ggplot(aes(x = taxon, y = lfc_type_insins_veg_patch, fill = direct)) + 
   geom_bar(stat = "identity", width = 0.7, color = "black",
            position = position_dodge(width = 0.4)) +
-  labs(y = "Log-fold change", x = NULL, title = "(a)") + 
+  labs(y = "Log-fold change", x = NULL, tag = "(a)") + 
   geom_errorbar(
     aes(
       ymin = lfc_type_insins_veg_patch - se_type_insins_veg_patch,
@@ -838,17 +844,21 @@ fig_insL_veg = res_insL_veg %>%
     "Positive LFC" = "#9C6EB0",
     "Negative LFC" = "#4ACD66"
   )) +
+  ggtitle("16S Differential Abundance") + 
   theme_bw() + 
   theme(
-    plot.title = element_text(size = 16, hjust = 0.5),
+    plot.title = element_text(size = 18, hjust = 0.5, face = "bold"),
     axis.title.y = element_text(face="bold", size = 18), 
     axis.text.y = element_text(size = 16),
     axis.text.x = element_text(size = 16),
     axis.title.x = element_text(size = 18, face = "bold", color = "black"),
     plot.margin = unit(c(0.1,0.1,0,0.1), "cm"),
     legend.text = element_text(size = 14, face = "bold"),
-    legend.title = element_blank()
-  )
+    legend.title = element_blank(), legend.position = "none"
+  ) +
+  theme(
+    plot.tag = element_text(face = "bold", size = 18),
+    plot.tag.position = c(0.02, 0.98) )
 fig_insL_veg
 
 
@@ -872,10 +882,7 @@ fig_insL_ousL = res_insL_ousL %>%
        title = "Log fold changes") + 
   scale_fill_discrete(name = NULL) +
   scale_color_discrete(name = NULL) +
-  theme_bw() + 
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.minor.y = element_blank(),
-        axis.text.x = element_blank())
+  theme_bw() 
 fig_insL_ousL
 
 
@@ -887,29 +894,35 @@ fig_insL_ousL = res_insL_ousL %>%
            position = position_dodge(width = 0.4)) +
   geom_errorbar(aes(ymin = lfc_type_insout_latrine - se_type_insout_latrine, ymax = lfc_type_insout_latrine + se_type_insout_latrine), 
                 width = 0.2, position = position_dodge(0.05), color = "black") + 
-  labs(x = NULL, y = "Log fold change", title = "(b)") + 
+  labs(x = NULL, y = "Log fold change", tag = "(b)") + 
   scale_x_discrete(labels = seq_along(unique(res_insL_ousL$taxon))) +
   scale_fill_manual(values = c(
     "Positive LFC" = "#9C6EB0",
     "Negative LFC" = "#4DD7CE"
-  )) +
+  )) + 
+  ggtitle("16S Differential Abundance") + 
   theme_bw() + 
   theme(
-    plot.title = element_text(size = 16, hjust = 0.5),
+    plot.title = element_text(size = 18, hjust = 0.5, face = "bold"),
     axis.title.y = element_text(face="bold", size = 18), 
     axis.text.y = element_text(size = 16),
     axis.text.x = element_text(size = 16),
     axis.title.x = element_text(size = 18, face = "bold", color = "black"),
     plot.margin = unit(c(0.1,0.1,0,0.1), "cm"),
     legend.text = element_text(size = 14, face = "bold"),
-    legend.title = element_blank()
-  )
+    legend.title = element_blank(), legend.position = "none"
+  ) +
+  theme(
+    plot.tag = element_text(face = "bold", size = 18),
+    plot.tag.position = c(0.02, 0.98) )
 fig_insL_ousL
 
 
 #to put together 
 fig_insL_veg /
   fig_insL_ousL
+
+#export 800 x 800
 
 # Outside Latrine and Vegetation patches
 res_ousL_veg<- res_pair %>% 
